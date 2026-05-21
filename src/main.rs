@@ -25,12 +25,21 @@ fn shell(){
 
 fn cpu(){
     let cpu_info = fs::read_to_string("/proc/cpuinfo").unwrap();
-    println!("{}", cpu_info);
+    for lines in cpu_info.lines(){
+        if lines.starts_with("model name"){
+            println!("{}",lines);
+            break;
+        }
+    }
 }
 
 fn memory(){
     let memory_info = fs::read_to_string("/proc/meminfo").unwrap();
-    println!("{}", memory_info);
+    for lines in memory_info.lines(){
+        if lines.starts_with("MemTotal:") || lines.starts_with("MemAvailable:"){
+            println!("{}",lines);
+        }
+    }
 }
 
 fn main() {
