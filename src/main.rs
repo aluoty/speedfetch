@@ -13,9 +13,6 @@ fn os() -> String {
 fn kernel() -> String {
     fs::read_to_string("/proc/version")
         .unwrap()
-        .split("x86_64")
-        .next()
-        .unwrap()
         .trim()
         .to_string()
 }
@@ -44,16 +41,26 @@ fn memory() -> String {
 
     let mut total = "";
     let mut available = "";
+    let mut total_kb: f64;
+    let mut available_kb: f64;
 
     for line in meminfo.lines() {
         if line.starts_with("MemTotal:") {
-            total = line;
+            total = line.split(":").last().unwrap();
         }
         if line.starts_with("MemAvailable:") {
-            available = line;
+            available = line.split(":").last().unwrap();
         }
     }
-    format!("{}\n{}", total, available)
+    total = total.split("kB").next().unwrap().trim();
+    total_kb = total.parse::<f64>().unwrap();
+    if total_kb > 1024.0*1024.0{
+        total_kb = total_kb / 1024.0 / 1024.0;
+    } else {
+        total_kb = total_kb / 1024.0;
+    }
+    total_kb = (total_kb * 10.0).round() / 10.0;
+    return total_kb.to_string();
 }
 
 fn main() {
