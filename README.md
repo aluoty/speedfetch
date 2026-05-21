@@ -1,6 +1,6 @@
 # Speedfetch
 + This is speedfetch, used for displaying information and hardware in terminal made using Rust.
-# Using the tool
+## Using the tool
 + Make sure that you are in the speedfetch folder.
 + Make sure you have cargo and Rust if you want to build the tool from source code.
 + Run and compile binary from source code:
