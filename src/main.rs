@@ -2,6 +2,7 @@ use std::fs;
 use std::env;
 use std::cmp::max;
 use unicode_width::UnicodeWidthStr;
+use std::process::Command;
 
 fn os() -> String {
     for line in fs::read_to_string("/etc/os-release").unwrap().lines() {
@@ -76,6 +77,26 @@ fn memory() -> String {
     format!("{}GB / {}GB {}%",used_kb,total_kb,used_percentage)
 }
 
+fn uptime() -> String {
+    let uptime_info = fs::read_to_string("/proc/uptime").unwrap().split(" ").next().unwrap().to_string();
+    let mut uptime_minutes: f64 = uptime_info.parse().unwrap();
+    uptime_minutes = (uptime_minutes / 60.0).round();
+    return uptime_minutes.to_string()
+}
+
+fn gpu() -> String {
+    let output = Command::new("lspci").output().unwrap();
+
+    let mut gpu_info = String::from_utf8(output.stdout)
+        .unwrap_or_default()
+        .lines()
+        .find(|l| l.contains("VGA") || l.contains("3D") || l.contains("Display"))
+        .unwrap_or("Unknown GPU")
+        .to_string();
+    gpu_info = gpu_info.split("controller").last().unwrap().to_string();
+    return gpu_info
+}
+
 fn get_logo(){
     let distro_info = fs::read_to_string("/etc/os-release").unwrap();
     let mut distro = "";
@@ -99,11 +120,15 @@ fn render(){
     ];
     let bottom_left: Vec<String> = vec![
         format!("Nothing yet..."),
+        format!("Nothing yet..."),
+        format!("Nothing yet..."),
         format!("Nothing yet...")
     ];
     let bottom_right: Vec<String> = vec![
         format!("CPU: {}", cpu()),
-        format!("Memory: {}", memory())
+        format!("GPU: {}", gpu()),
+        format!("Memory: {}", memory()),
+        format!("Uptime: {} minutes", uptime())
     ];
 
     let top_left_width = top_left.iter().map(|s| s.width()).max().unwrap();
