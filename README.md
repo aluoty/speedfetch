@@ -25,6 +25,7 @@ cargo check
 ```
 + Add as global command:
 ```bash
+echo $PATH
 cargo build --release
-sudo mv target/release/speedfetch /bin
+sudo mv target/release/speedfetch /PATH_IN_ECHO_$PATH
 ```
