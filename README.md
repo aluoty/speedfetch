@@ -23,3 +23,8 @@ cargo build
 ```bash
 cargo check
 ```
++ Add as global command:
+```bash
+cargo build --release
+sudo mv target/release/speedfetch /bin
+```
