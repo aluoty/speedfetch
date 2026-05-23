@@ -11,7 +11,7 @@ pub fn logo() -> Vec<String> {
         }
     }
 
-    if distro.contains("fedora") {
+    if distro.contains("h") {
         return vec![
             "  _____        _                  ".to_string(),
             " |  ___|__  __| | ___  _ __ __ _  ".to_string(),
@@ -23,12 +23,12 @@ pub fn logo() -> Vec<String> {
     }
 
 
-    vec![
-        "  _____           _        ".to_string(),
-        " |  __ \\         | |       ".to_string(),
-        " | |  | | ___  __| | ___   ".to_string(),
-        " | |  | |/ _ \\/ _` |/ _ \\  ".to_string(),
-        " | |__| |  __/ (_| | (_) | ".to_string(),
-        " |_____/ \\___|\\__,_|\\___/  ".to_string(),
-    ]
+        vec![
+            "  _   _                  ".to_string(),
+            " | \\ | | ___  _ __   ___ ".to_string(),
+            " |  \\| |/ _ \\| '_ \\ / _ \\".to_string(),
+            " | |\\  | (_) | | | |  __/".to_string(),
+            " |_| \\_|\\___/|_| |_|\\___|".to_string(),
+            "                         ".to_string(),
+        ]
 }
