@@ -36,9 +36,8 @@ impl Panel {
         std::cmp::max(content_width, title_width) + 4
     }
 
-    fn render(&self) -> Vec<String> {
-        let width = self.compute_width();
-        let inner_width = width - 4;
+    fn render_at(&self, width: usize) -> Vec<String> {
+        let inner_width = width.saturating_sub(4);
 
         let mut lines = Vec::new();
 
@@ -68,6 +67,49 @@ impl Panel {
 
         lines
     }
+}
+
+fn render_panels(panels: &[Panel]) -> Vec<String> {
+    let width = panels
+        .iter()
+        .map(Panel::compute_width)
+        .max()
+        .unwrap_or(0);
+
+    let mut output = Vec::new();
+
+    for (i, panel) in panels.iter().enumerate() {
+        if i > 0 {
+            output.push(String::new());
+        }
+        output.extend(panel.render_at(width));
+    }
+
+    output
+}
+
+fn join_columns(mut left: Vec<String>, mut right: Vec<String>, gap: usize) -> Vec<String> {
+    let height = std::cmp::max(left.len(), right.len());
+    let left_width = left
+        .iter()
+        .map(|l| utils::strip_ansi(l).width())
+        .max()
+        .unwrap_or(0);
+
+    left.resize(height, String::new());
+    right.resize(height, String::new());
+
+    let spacer = " ".repeat(gap);
+    let mut output = Vec::with_capacity(height);
+
+    for i in 0..height {
+        let visible = utils::strip_ansi(&left[i]).width();
+        let padding = left_width.saturating_sub(visible);
+        output.push(format!("{}{}{}", left[i], " ".repeat(padding), spacer));
+        output.last_mut().unwrap().push_str(&right[i]);
+    }
+
+    output
 }
 
 fn get_distro() -> String {
@@ -185,47 +227,13 @@ fn compose(config: &Config, distro: &str, animator: &theme::GradientAnimator) ->
         ],
     );
 
-    let system = system_panel.render();
-    let session = session_panel.render();
-    let hardware = hardware_panel.render();
-    let display = display_panel.render();
+    let info = join_columns(
+        render_panels(&[system_panel, session_panel]),
+        render_panels(&[hardware_panel, display_panel]),
+        4,
+    );
 
-    let mut left = Vec::new();
-    left.extend(logo_lines);
-    left.extend(session);
-
-    let mut right = Vec::new();
-    right.extend(system);
-    right.extend(hardware);
-    right.extend(display);
-
-    let height = std::cmp::max(left.len(), right.len());
-
-    let left_width = left
-        .iter()
-        .map(|l| utils::strip_ansi(l).width())
-        .max()
-        .unwrap_or(0);
-
-    left.resize(height, String::new());
-    right.resize(height, String::new());
-
-    let mut output = Vec::new();
-
-    for i in 0..height {
-        let visible = utils::strip_ansi(&left[i]).width();
-        let padding = left_width.saturating_sub(visible);
-
-        let left_line = format!("{}{}", left[i], " ".repeat(padding));
-
-        output.push(format!(
-            "{}    {}",
-            left_line,
-            right[i]
-        ));
-    }
-
-    output
+    join_columns(logo_lines, info, 4)
 }
 
 fn print_frame(lines: &[String]) {
