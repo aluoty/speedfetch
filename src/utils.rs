@@ -4,11 +4,9 @@ pub fn strip_ansi(input: &str) -> String {
 
     while let Some(c) = chars.next() {
         if c == '\x1b' {
-            // skip ESC sequence
             while let Some(&next) = chars.peek() {
                 chars.next();
-
-                if next == 'm' {
+                if next.is_ascii_lowercase() || next.is_ascii_uppercase() {
                     break;
                 }
             }
