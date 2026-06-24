@@ -69,9 +69,10 @@ Options:
 
 ```bash
 cargo build --release
-sudo cp target/release/speedfetch /usr/local/bin/
+echo $PATH
+sudo cp target/release/speedfetch /PATH_IN_ECHO_PATH # example path: /usr/local/bin/
 ```
 
 ## License
 
-MIT
+See [LICENSE](LICENSE)
