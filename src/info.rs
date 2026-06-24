@@ -57,6 +57,18 @@ pub fn terminal() -> String {
         }
         return t;
     }
+    if env::var("ALACRITTY_WINDOW_ID").is_ok() {
+        return "Alacritty".to_string();
+    }
+    if env::var("KITTY_PID").is_ok() {
+        return "Kitty".to_string();
+    }
+    if env::var("WEZTERM_EXECUTABLE_DIR").is_ok() {
+        return "WezTerm".to_string();
+    }
+    if env::var("GHOSTTY_RESOURCES_DIR").is_ok() {
+        return "Ghostty".to_string();
+    }
     if let Ok(t) = env::var("TERMINAL_EMULATOR") {
         return t.replace("()", "").trim().to_string();
     }
@@ -147,24 +159,101 @@ pub fn cpu() -> String {
         .unwrap_or_else(|| "Unknown CPU".to_string())
 }
 
+fn pci_vendor_name(vendor: &str) -> &'static str {
+    match vendor {
+        "0x8086" => "Intel",
+        "0x1002" | "0x1022" => "AMD",
+        "0x10de" => "NVIDIA",
+        "0x1ae0" => "Google",
+        _ => "Unknown",
+    }
+}
+
+fn pci_device_name(vendor: &str, device: &str) -> Option<&'static str> {
+    Some(match (vendor, device) {
+        // Intel
+        ("0x8086", "0x8a5a") => "Iris Plus Graphics G4 (Ice Lake)",
+        ("0x8086", "0x8a51") => "Iris Plus Graphics G7 (Ice Lake)",
+        ("0x8086", "0x9b41") => "UHD Graphics (Comet Lake)",
+        ("0x8086", "0x9bc4") => "UHD Graphics (Comet Lake)",
+        ("0x8086", "0x3e9b") => "UHD Graphics 630 (Coffee Lake)",
+        ("0x8086", "0x3ea0") => "UHD Graphics 630 (Coffee Lake)",
+        ("0x8086", "0x3e92") => "HD Graphics 630 (Kaby Lake)",
+        ("0x8086", "0x591b") => "HD Graphics 630 (Kaby Lake)",
+        ("0x8086", "0x5917") => "HD Graphics 620 (Kaby Lake)",
+        ("0x8086", "0x5916") => "HD Graphics 620 (Kaby Lake)",
+        ("0x8086", "0x3185") => "UHD Graphics 605 (Gemini Lake)",
+        ("0x8086", "0x22b1") => "HD Graphics 615 (Braswell)",
+        ("0x8086", "0x0f31") => "HD Graphics (Bay Trail)",
+        ("0x8086", "0x2a42") => "Integrated Graphics (Mobile 4)",
+        ("0x8086", "0x46a6") => "Iris Xe Graphics (Alder Lake)",
+        ("0x8086", "0x46a8") => "Iris Xe Graphics (Alder Lake)",
+        ("0x8086", "0xa7a0") => "Iris Xe Graphics (Raptor Lake)",
+        ("0x8086", "0xa7a1") => "UHD Graphics (Raptor Lake)",
+        ("0x8086", "0x7d55") => "Iris Xe Graphics (Meteor Lake)",
+        // AMD
+        ("0x1002", _) | ("0x1022", _) => "AMD Radeon",
+        // NVIDIA
+        ("0x10de", "0x1f03") => "GeForce RTX 3070",
+        ("0x10de", "0x1f04") => "GeForce RTX 3070 Ti",
+        ("0x10de", "0x1e84") => "GeForce RTX 2080",
+        ("0x10de", "0x1eb1") => "GeForce RTX 2060",
+        ("0x10de", "0x1f82") => "GeForce RTX 3060",
+        ("0x10de", "0x2484") => "GeForce RTX 4060",
+        ("0x10de", "0x2684") => "GeForce RTX 5060",
+        _ => return None,
+    })
+}
+
+fn gpu_from_sysfs() -> Option<String> {
+    let pci_root = "/sys/bus/pci/devices";
+    for entry in std::fs::read_dir(pci_root).ok()? {
+        let entry = entry.ok()?;
+        let class_path = entry.path().join("class");
+        let class = std::fs::read_to_string(class_path).ok()?;
+        let class = class.trim();
+        if class != "0x030000" && class != "0x030200" {
+            continue;
+        }
+        let vendor = std::fs::read_to_string(entry.path().join("vendor")).ok()?;
+        let device = std::fs::read_to_string(entry.path().join("device")).ok()?;
+        let vendor = vendor.trim();
+        let device = device.trim();
+        let driver_path = entry.path().join("driver");
+        let driver = std::fs::read_link(&driver_path)
+            .ok()
+            .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()));
+
+        if let Some(name) = pci_device_name(vendor, device) {
+            return Some(name.to_string());
+        }
+
+        let vendor_name = pci_vendor_name(vendor);
+        return Some(match driver {
+            Some(d) => format!("{vendor_name} GPU ({d})"),
+            None => format!("{vendor_name} GPU"),
+        });
+    }
+    None
+}
+
 pub fn gpu() -> String {
-    Command::new("lspci")
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|out| {
-            out.lines()
-                .find(|l| {
-                    l.contains("VGA")
-                        || l.contains("3D")
-                        || l.contains("Display")
-                        || l.contains("GPU")
-                })
-                .and_then(|l| l.split(':').nth(2).or_else(|| l.split(':').last()))
-                .map(str::trim)
-                .map(str::to_string)
-        })
-        .unwrap_or_else(|| "Unknown GPU".to_string())
+    if let Ok(out) = Command::new("lspci").output() {
+        if let Ok(s) = String::from_utf8(out.stdout) {
+            if let Some(line) = s.lines().find(|l| {
+                l.contains("VGA") || l.contains("3D") || l.contains("Display") || l.contains("GPU")
+            }) {
+                if let Some((_, name)) = line.split_once(": ") {
+                    let name = name.trim().to_string();
+                    if !name.is_empty() {
+                        return name;
+                    }
+                }
+            }
+        }
+    }
+
+    gpu_from_sysfs().unwrap_or_else(|| "Unknown GPU".to_string())
 }
 
 pub fn memory() -> String {
@@ -262,6 +351,18 @@ pub fn packages() -> String {
         if out.status.success() {
             let n = String::from_utf8_lossy(&out.stdout).lines().count();
             return format!("{n} (nix)");
+        }
+    }
+    if let Ok(out) = Command::new("flatpak").args(["list"]).output() {
+        if out.status.success() {
+            let n = String::from_utf8_lossy(&out.stdout).lines().count();
+            return format!("{n} (flatpak)");
+        }
+    }
+    if let Ok(out) = Command::new("snap").args(["list"]).output() {
+        if out.status.success() {
+            let n = String::from_utf8_lossy(&out.stdout).lines().count();
+            return format!("{n} (snap)");
         }
     }
     "N/A".to_string()

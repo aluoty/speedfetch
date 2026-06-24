@@ -32,6 +32,10 @@ struct Args {
     /// Save output to file
     #[arg(long, value_name = "FILE")]
     save: Option<String>,
+
+    /// Hide logo, show info only (bare output)
+    #[arg(long)]
+    no_logo: bool,
 }
 
 struct Panel {
@@ -276,6 +280,33 @@ fn compose(config: &Config, distro: &str, theme: &Theme, info: &SystemInfo) -> V
     join_columns(logo_lines, info_col, 3)
 }
 
+fn compose_no_logo(theme: &Theme, info: &SystemInfo) -> Vec<String> {
+    let row = |label: &str, value: &str| {
+        format!("{} {}", theme.label(label), theme.value(value))
+    };
+
+    vec![
+        row("OS:", &info.os),
+        row("Host:", &info.hostname),
+        row("Kernel:", &info.kernel),
+        row("Arch:", &info.arch),
+        row("Init:", &info.init),
+        row("Pkgs:", &info.packages),
+        row("User:", &info.user_host),
+        row("Shell:", &info.shell),
+        row("Term:", &info.terminal),
+        row("DE/WM:", &info.de_wm),
+        row("Uptime:", &info.uptime),
+        row("Locale:", &info.locale),
+        row("CPU:", &info.cpu),
+        row("GPU:", &info.gpu),
+        row("Memory:", &info.memory),
+        row("Disk:", &info.disk),
+        row("Res:", &info.resolution),
+        row("Font:", &info.font),
+    ]
+}
+
 fn main() {
     let args = Args::parse();
     let config = loader::load_config();
@@ -293,6 +324,7 @@ fn main() {
 
     let distro = args.distro.unwrap_or_else(distro::distro);
     let info = collect_info();
+    let no_logo = args.no_logo;
 
     let output = match args.output_format.as_deref() {
         Some("json") => serde_json::to_string_pretty(&info).unwrap(),
@@ -303,11 +335,24 @@ fn main() {
         }
         None => {
             let registry = theme::ThemeRegistry::from(&config);
-            let theme = registry.get(&distro);
+            // resolve theme key the same way compose resolves the logo key
+            let theme_key = if config.distro.contains_key(&distro) {
+                distro.as_str()
+            } else {
+                distro_styles::logo_family(&distro)
+            };
+            let theme = registry.get(theme_key);
             let mut out = String::new();
-            for line in compose(&config, &distro, &theme, &info) {
-                out.push_str(&line);
-                out.push('\n');
+            if no_logo {
+                for line in compose_no_logo(&theme, &info) {
+                    out.push_str(&line);
+                    out.push('\n');
+                }
+            } else {
+                for line in compose(&config, &distro, &theme, &info) {
+                    out.push_str(&line);
+                    out.push('\n');
+                }
             }
             out
         }

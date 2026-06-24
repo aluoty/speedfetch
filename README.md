@@ -10,6 +10,8 @@ A fast, pretty system info fetcher for Linux terminals with RGB gradient ASCII l
 - **Panels**: System, Session, Hardware, Display
 - **Output formats**: terminal display, JSON, TOML
 - **Static gradient rendering** — beautiful colors, no animation overhead
+- **Bare mode** (`--no-logo`) for minimal output
+- **Export to file** via `--save`
 
 ### Panel fields
 
@@ -28,7 +30,6 @@ cargo run
 
 # Run binary
 ./target/debug/speedfetch
-./target/release/speedfetch
 
 # Specify a distro logo/theme
 cargo run -- --distro arch
@@ -47,6 +48,9 @@ cargo run -- --type toml
 cargo run -- --save output.txt
 cargo run -- --type json --save system.json
 
+# Minimal output (no logo, no borders)
+cargo run -- --no-logo
+
 # Build release
 cargo build --release
 ```
@@ -61,6 +65,7 @@ Options:
       --list             List available distro presets
       --type <FORMAT>    Output format (json, toml)
       --save <FILE>      Save output to file
+      --no-logo          Hide logo, show info only
   -h, --help             Print help
   -V, --version          Print version
 ```
@@ -69,8 +74,7 @@ Options:
 
 ```bash
 cargo build --release
-echo $PATH
-sudo cp target/release/speedfetch /PATH_IN_ECHO_PATH # example path: /usr/local/bin/
+sudo cp target/release/speedfetch /usr/local/bin/
 ```
 
 ## License
