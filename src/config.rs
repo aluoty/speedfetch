@@ -17,7 +17,6 @@ pub struct DistroConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ThemeConfig {
-    pub logo: String,
     pub label: String,
     pub value: String,
 }

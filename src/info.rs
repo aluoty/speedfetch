@@ -293,12 +293,22 @@ pub fn arch() -> String {
             return a;
         }
     }
+    if let Ok(a) = env::var("ARCH") {
+        if !a.is_empty() {
+            return a;
+        }
+    }
+    if let Ok(out) = Command::new("uname").arg("-m").output() {
+        if let Ok(s) = String::from_utf8(out.stdout) {
+            let s = s.trim().to_string();
+            if !s.is_empty() {
+                return s;
+            }
+        }
+    }
     if let Ok(info) = fs::read_to_string("/proc/cpuinfo") {
         if let Some(a) = info.lines().find_map(|l| {
-            l.strip_prefix("CPU architecture: ")
-                .or_else(|| l.strip_prefix("cpu family\t: "))
-                .map(str::trim)
-                .map(str::to_string)
+            l.strip_prefix("CPU architecture: ").map(str::trim).map(str::to_string)
         }) {
             return a;
         }

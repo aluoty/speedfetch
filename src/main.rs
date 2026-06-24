@@ -1,7 +1,7 @@
-use std::thread;
-use std::time::Duration;
-
 use unicode_width::UnicodeWidthStr;
+
+use clap::Parser;
+use serde::Serialize;
 
 mod config;
 mod distro;
@@ -12,79 +12,99 @@ mod theme;
 mod utils;
 
 use config::{Config, DistroConfig};
+use theme::Theme;
+
+#[derive(Parser)]
+#[command(name = "speedfetch", version, about = "A pretty system info fetcher")]
+struct Args {
+    /// Distro to display (overrides auto-detection)
+    #[arg(short, long)]
+    distro: Option<String>,
+
+    /// List available distro presets
+    #[arg(long)]
+    list: bool,
+
+    /// Output format (json, toml)
+    #[arg(long = "type", value_name = "FORMAT")]
+    output_format: Option<String>,
+
+    /// Save output to file
+    #[arg(long, value_name = "FILE")]
+    save: Option<String>,
+}
 
 struct Panel {
     title: String,
-    items: Vec<String>,
+    items: Vec<(String, String)>,
 }
 
 impl Panel {
-    fn new(title: String, items: Vec<String>) -> Self {
+    fn new(title: String, items: Vec<(String, String)>) -> Self {
         Self { title, items }
     }
 
-    fn compute_width(&self) -> usize {
-        let content_width = self
+    fn compute_width(&self, label_width: usize) -> usize {
+        let inner = self
             .items
             .iter()
-            .map(|s| utils::strip_ansi(s).width())
+            .map(|(l, v)| {
+                let label = utils::strip_ansi(l).width();
+                let pad = label_width.saturating_sub(label);
+                label + pad + 1 + utils::strip_ansi(v).width()
+            })
             .max()
             .unwrap_or(0);
 
         let title_width = self.title.width();
-
-        std::cmp::max(content_width, title_width) + 4
+        std::cmp::max(inner, title_width) + 4
     }
 
-    fn render_at(&self, width: usize) -> Vec<String> {
-        let inner_width = width.saturating_sub(4);
+    fn label_width(&self) -> usize {
+        self.items
+            .iter()
+            .map(|(l, _)| utils::strip_ansi(l).width())
+            .max()
+            .unwrap_or(0)
+    }
+
+    fn render_at(&self, width: usize, label_width: usize) -> Vec<String> {
+        let inner = width.saturating_sub(4);
 
         let mut lines = Vec::new();
-
         lines.push(format!("┌{}┐", "─".repeat(width - 2)));
-
-        lines.push(format!(
-            "│ {:<inner_width$} │",
-            self.title,
-            inner_width = inner_width
-        ));
-
+        lines.push(format!("│ {:<inner$} │", self.title, inner = inner));
         lines.push(format!("├{}┤", "─".repeat(width - 2)));
 
-        for item in &self.items {
-            let visible = utils::strip_ansi(item).width();
-            let padding = inner_width.saturating_sub(visible);
-
-            // IMPORTANT: build final padded string BEFORE wrapping border
-            let mut line = String::new();
-            line.push_str(item);
-            line.push_str(&" ".repeat(padding));
-
-            lines.push(format!("│ {} │", line));
+        for (label, value) in &self.items {
+            let visible_label = utils::strip_ansi(label).width();
+            let pad = label_width.saturating_sub(visible_label);
+            let item = format!("{}{} {}", label, " ".repeat(pad), value);
+            let visible = utils::strip_ansi(&item).width();
+            let padding = inner.saturating_sub(visible);
+            lines.push(format!("│ {} │", item + &" ".repeat(padding)));
         }
 
         lines.push(format!("└{}┘", "─".repeat(width - 2)));
-
         lines
     }
 }
 
 fn render_panels(panels: &[Panel]) -> Vec<String> {
+    let label_width = panels.iter().map(Panel::label_width).max().unwrap_or(0);
     let width = panels
         .iter()
-        .map(Panel::compute_width)
+        .map(|p| p.compute_width(label_width))
         .max()
         .unwrap_or(0);
 
     let mut output = Vec::new();
-
     for (i, panel) in panels.iter().enumerate() {
         if i > 0 {
             output.push(String::new());
         }
-        output.extend(panel.render_at(width));
+        output.extend(panel.render_at(width, label_width));
     }
-
     output
 }
 
@@ -110,22 +130,6 @@ fn join_columns(mut left: Vec<String>, mut right: Vec<String>, gap: usize) -> Ve
     }
 
     output
-}
-
-fn get_distro() -> String {
-    let mut args = std::env::args();
-
-    while let Some(arg) = args.next() {
-        if arg == "--distro" {
-            return args.next().unwrap_or_else(|| "unknown".to_string());
-        }
-
-        if let Some(v) = arg.strip_prefix("--distro=") {
-            return v.to_string();
-        }
-    }
-
-    distro::distro()
 }
 
 fn resolve_inheritance(config: &Config, entry: DistroConfig) -> DistroConfig {
@@ -155,7 +159,52 @@ fn resolve_inheritance(config: &Config, entry: DistroConfig) -> DistroConfig {
     resolved
 }
 
-fn compose(config: &Config, distro: &str, animator: &theme::GradientAnimator) -> Vec<String> {
+#[derive(Serialize)]
+struct SystemInfo {
+    os: String,
+    hostname: String,
+    kernel: String,
+    arch: String,
+    init: String,
+    packages: String,
+    user_host: String,
+    shell: String,
+    terminal: String,
+    de_wm: String,
+    uptime: String,
+    locale: String,
+    cpu: String,
+    gpu: String,
+    memory: String,
+    disk: String,
+    resolution: String,
+    font: String,
+}
+
+fn collect_info() -> SystemInfo {
+    SystemInfo {
+        os: info::os(),
+        hostname: info::hostname(),
+        kernel: info::kernel(),
+        arch: info::arch(),
+        init: info::init_system(),
+        packages: info::packages(),
+        user_host: info::user_host(),
+        shell: info::shell(),
+        terminal: info::terminal(),
+        de_wm: info::de_wm(),
+        uptime: info::uptime(),
+        locale: info::locale(),
+        cpu: info::cpu(),
+        gpu: info::gpu(),
+        memory: info::memory(),
+        disk: info::disk(),
+        resolution: info::resolution(),
+        font: info::font(),
+    }
+}
+
+fn compose(config: &Config, distro: &str, theme: &Theme, info: &SystemInfo) -> Vec<String> {
     let logo_key = if config.distro.contains_key(distro) {
         distro.to_string()
     } else {
@@ -170,91 +219,105 @@ fn compose(config: &Config, distro: &str, animator: &theme::GradientAnimator) ->
         .clone();
 
     let entry = resolve_inheritance(config, entry);
-
-    let registry = theme::ThemeRegistry::from(config);
-    let theme_key = if config.distro.contains_key(distro) {
-        distro
-    } else {
-        distro_styles::logo_family(distro)
-    };
-    let theme = registry.get(theme_key);
-
-    let logo_lines = theme.render_logo(&entry.logo, distro, animator);
+    let logo_lines = theme.render_logo(&entry.logo, distro);
 
     let row = |label: &str, value: &str| {
-        format!("{} {}", theme.label(label), theme.value(value))
+        (theme.label(label), theme.value(value))
     };
 
     let system_panel = Panel::new(
         "System".into(),
         vec![
-            row("OS:", &info::os()),
-            row("Host:", &info::hostname()),
-            row("Kernel:", &info::kernel()),
-            row("Arch:", &info::arch()),
-            row("Init:", &info::init_system()),
-            row("Pkgs:", &info::packages()),
+            row("OS:", &info.os),
+            row("Host:", &info.hostname),
+            row("Kernel:", &info.kernel),
+            row("Arch:", &info.arch),
+            row("Init:", &info.init),
+            row("Pkgs:", &info.packages),
         ],
     );
 
     let session_panel = Panel::new(
         "Session".into(),
         vec![
-            row("User:", &info::user_host()),
-            row("Shell:", &info::shell()),
-            row("Term:", &info::terminal()),
-            row("DE/WM:", &info::de_wm()),
-            row("Uptime:", &info::uptime()),
-            row("Locale:", &info::locale()),
+            row("User:", &info.user_host),
+            row("Shell:", &info.shell),
+            row("Term:", &info.terminal),
+            row("DE/WM:", &info.de_wm),
+            row("Uptime:", &info.uptime),
+            row("Locale:", &info.locale),
         ],
     );
 
     let hardware_panel = Panel::new(
         "Hardware".into(),
         vec![
-            row("CPU:", &info::cpu()),
-            row("GPU:", &info::gpu()),
-            row("Memory:", &info::memory()),
-            row("Disk:", &info::disk()),
+            row("CPU:", &info.cpu),
+            row("GPU:", &info.gpu),
+            row("Memory:", &info.memory),
+            row("Disk:", &info.disk),
         ],
     );
 
     let display_panel = Panel::new(
         "Display".into(),
         vec![
-            row("Res:", &info::resolution()),
-            row("Font:", &info::font()),
+            row("Res:", &info.resolution),
+            row("Font:", &info.font),
         ],
     );
 
-    let info = join_columns(
+    let info_col = join_columns(
         render_panels(&[system_panel, session_panel]),
         render_panels(&[hardware_panel, display_panel]),
-        4,
+        3,
     );
 
-    join_columns(logo_lines, info, 4)
-}
-
-fn print_frame(lines: &[String]) {
-    print!("\x1b[2J\x1b[H");
-    for line in lines {
-        println!("{}", line);
-    }
+    join_columns(logo_lines, info_col, 3)
 }
 
 fn main() {
-    let distro = get_distro();
+    let args = Args::parse();
     let config = loader::load_config();
-    let speed = theme::ThemeRegistry::from(&config)
-        .get(&distro)
-        .gradient_speed(&distro);
 
-    let mut animator = theme::GradientAnimator::new(speed);
+    if args.list {
+        let mut keys: Vec<&String> = config.distro.keys().collect();
+        keys.sort();
+        for k in keys {
+            if k != "unknown" {
+                println!("{k}");
+            }
+        }
+        return;
+    }
 
-    loop {
-        animator.step();
-        print_frame(&compose(&config, &distro, &animator));
-        thread::sleep(Duration::from_millis(33));
+    let distro = args.distro.unwrap_or_else(distro::distro);
+    let info = collect_info();
+
+    let output = match args.output_format.as_deref() {
+        Some("json") => serde_json::to_string_pretty(&info).unwrap(),
+        Some("toml") => toml::to_string(&info).unwrap(),
+        Some(f) => {
+            eprintln!("error: unknown output format '{f}' (use json or toml)");
+            std::process::exit(1);
+        }
+        None => {
+            let registry = theme::ThemeRegistry::from(&config);
+            let theme = registry.get(&distro);
+            let mut out = String::new();
+            for line in compose(&config, &distro, &theme, &info) {
+                out.push_str(&line);
+                out.push('\n');
+            }
+            out
+        }
+    };
+
+    match &args.save {
+        Some(path) => std::fs::write(path, &output).unwrap_or_else(|e| {
+            eprintln!("error: failed to write to '{path}': {e}");
+            std::process::exit(1);
+        }),
+        None => print!("{output}"),
     }
 }
