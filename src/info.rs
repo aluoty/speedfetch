@@ -9,7 +9,7 @@ pub fn os() -> String {
         .and_then(|data| {
             data.lines().find_map(|line| {
                 line.strip_prefix("PRETTY_NAME=")
-                    .map(|v| v.trim_matches('"').to_string())
+                    .map(|v| v.trim_matches(['"', '\'']).to_string())
             })
         })
         .unwrap_or_else(|| "Unknown OS".to_string())

@@ -4,7 +4,7 @@ pub fn distro() -> String {
         .lines()
         .find_map(|line| {
             line.strip_prefix("ID=")
-                .map(|v| v.trim_matches('"').to_string())
+                .map(|v| v.trim_matches(['"', '\'']).to_string())
         })
         .unwrap_or_else(|| "unknown".to_string())
 }
