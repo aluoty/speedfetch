@@ -1,0 +1,108 @@
+# speedfetch default configuration
+# Copy this file to ~/.config/speedfetch/config.toml and customize.
+
+# ──────────────────────────────────────────────────
+# Top-level settings (must be before any [section])
+# ──────────────────────────────────────────────────
+separator = " "
+
+# Which fields to show (empty = all). Available fields:
+#   os, host, kernel, uptime, pkgs, shell, res, de, wm,
+#   term, cpu, cpu-usage, gpu, memory, swap, disk, drive,
+#   battery, font, init, user, ip, datetime, locale, procs,
+#   arch, wm-theme, term-size, public-ip, wifi, bios, board
+#
+# show = ["os", "kernel", "cpu", "memory", "gpu"]
+
+# ──────────────────────────────────────────────────
+# Logo
+# ──────────────────────────────────────────────────
+# mode = "regular" | "small" | "none"
+[logo]
+mode = "regular"
+
+# [logo.padding]
+# top  = 0
+# left = 0
+
+# ──────────────────────────────────────────────────
+# Key (label) display
+# ──────────────────────────────────────────────────
+# [key]
+# width        = null    # force fixed key width (null = auto)
+# padding_left = 0       # left padding before keys
+# type         = "string" # "string" | "icon" | "both" | "none"
+
+# ──────────────────────────────────────────────────
+# Color overrides
+# ──────────────────────────────────────────────────
+# Available colors:
+#   black, red, green, yellow, blue, purple, magenta, cyan, white,
+#   gray, dim, bright_red, bright_green, bright_yellow, bright_blue,
+#   bright_magenta, bright_cyan, bright_white,
+#   orange, pink, lavender, teal, lime, gold, brown, none
+#
+# [color]
+# keys      = null   # override label color (null = distro theme)
+# values    = null   # override value color  (null = distro theme)
+# separator = null   # override separator color
+# bright    = false  # use bright ANSI variants
+
+# ──────────────────────────────────────────────────
+# Layout (box-drawing borders)
+# ──────────────────────────────────────────────────
+# [layout]
+# boxes          = false  # wrap info in Unicode box borders
+# title          = false  # show user@host in box title bar
+# separator_line = false  # draw line between title and content
+#
+# [layout.padding]
+# top    = 0
+# bottom = 0
+# left   = 1
+# right  = 1
+
+# ──────────────────────────────────────────────────
+# Bar display (for memory, swap, battery, cpu-usage)
+# ──────────────────────────────────────────────────
+# [bar]
+# width         = 20
+# char_elapsed  = "█"
+# char_total    = "░"
+# border_left   = "["
+# border_right  = "]"
+
+# ──────────────────────────────────────────────────
+# Percent display (for memory, swap, battery, cpu-usage)
+# ──────────────────────────────────────────────────
+# [percent]
+# type         = "number"  # "number" | "bar" | "both" | "colored"
+# ndigits      = 1
+# color_green  = "green"
+# color_yellow = "yellow"
+# color_red    = "red"
+
+# ──────────────────────────────────────────────────
+# Size display
+# ──────────────────────────────────────────────────
+# [size]
+# binary_prefix = "iec"   # "iec" | "si" | "jedec"
+# ndigits       = 1
+
+# ──────────────────────────────────────────────────
+# Temperature display
+# ──────────────────────────────────────────────────
+# [temp]
+# unit     = "c"    # "c" | "f" | "k"
+# ndigits  = 1
+
+# ──────────────────────────────────────────────────
+# Per-distro overrides
+# ──────────────────────────────────────────────────
+# [distro.arch]
+# logo = ["     _   ", "    | |  ", " ___| |_ ", ...]
+# small_logo = [" /\\  ", "/  \\ ", ...]
+#
+# [distro.arch.theme]
+# label = "cyan"
+# value = "white"

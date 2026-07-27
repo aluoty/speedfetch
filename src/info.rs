@@ -17,7 +17,13 @@ pub fn os() -> String {
 
 pub fn kernel() -> String {
     fs::read_to_string("/proc/sys/kernel/osrelease")
-        .map(|k| format!("Linux {}", k.trim()))
+        .map(|k| {
+            let t = k.trim();
+            let mut s = String::with_capacity(7 + t.len());
+            s.push_str("Linux ");
+            s.push_str(t);
+            s
+        })
         .unwrap_or_else(|_| "Unknown".to_string())
 }
 
@@ -41,7 +47,13 @@ pub fn username() -> String {
 }
 
 pub fn user_host() -> String {
-    format!("{}@{}", username(), hostname())
+    let u = username();
+    let h = hostname();
+    let mut s = String::with_capacity(u.len() + h.len() + 1);
+    s.push_str(&u);
+    s.push('@');
+    s.push_str(&h);
+    s
 }
 
 pub fn shell() -> String {
@@ -98,7 +110,6 @@ pub fn de() -> String {
 pub fn wm() -> String {
     let de = env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
 
-    // Known DE→WM mappings
     if de == "GNOME" || de.starts_with("GNOME:") || de.starts_with("gnome") {
         return "Mutter".to_string();
     }
@@ -118,7 +129,6 @@ pub fn wm() -> String {
         return "Muffin".to_string();
     }
 
-    // Env-var-detectable WMs
     if env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
         return "Hyprland".to_string();
     }
@@ -129,15 +139,15 @@ pub fn wm() -> String {
         return "i3".to_string();
     }
 
-    // Scan process list for known WM binaries
     if let Ok(out) = Command::new("ps").args(["-e", "-o", "comm="]).output() {
         if let Ok(s) = String::from_utf8(out.stdout) {
-            for name in &[
+            const WM_NAMES: &[&str] = &[
                 "mutter", "kwin_x11", "kwin_wayland", "openbox", "fluxbox",
                 "bspwm", "dwm", "qtile", "awesome", "xmonad", "xfwm4",
                 "i3", "sway", "hyprland", "budgie-wm", "marco", "muffin",
                 "berry", "herbstluftwm", "spectrwm", "leftwm",
-            ] {
+            ];
+            for name in WM_NAMES {
                 if s.lines().any(|l| l.trim() == *name) {
                     return name.to_string();
                 }
@@ -145,7 +155,6 @@ pub fn wm() -> String {
         }
     }
 
-    // Protocol fallback
     if env::var("WAYLAND_DISPLAY").is_ok() {
         return "Wayland".to_string();
     }
@@ -201,9 +210,17 @@ pub fn resolution() -> String {
 }
 
 pub fn cpu() -> String {
-    let cpuinfo = fs::read_to_string("/proc/cpuinfo").ok();
-    if let Some(ref info) = cpuinfo {
-        for prefix in &["model name\t: ", "model name: ", "Processor\t: ", "Processor : ", "Hardware\t: ", "Hardware : "] {
+    const PREFIXES: &[&str] = &[
+        "model name\t: ",
+        "model name: ",
+        "Processor\t: ",
+        "Processor : ",
+        "Hardware\t: ",
+        "Hardware : ",
+    ];
+
+    if let Some(ref info) = fs::read_to_string("/proc/cpuinfo").ok() {
+        for prefix in PREFIXES {
             if let Some(name) = info.lines().find_map(|line| {
                 line.strip_prefix(prefix).map(str::trim).map(str::to_string)
             }) {
@@ -240,7 +257,6 @@ fn pci_vendor_name(vendor: &str) -> &'static str {
 
 fn pci_device_name(vendor: &str, device: &str) -> Option<&'static str> {
     Some(match (vendor, device) {
-        // Intel
         ("0x8086", "0x8a5a") => "Iris Plus Graphics G4 (Ice Lake)",
         ("0x8086", "0x8a51") => "Iris Plus Graphics G7 (Ice Lake)",
         ("0x8086", "0x9b41") => "UHD Graphics (Comet Lake)",
@@ -260,9 +276,7 @@ fn pci_device_name(vendor: &str, device: &str) -> Option<&'static str> {
         ("0x8086", "0xa7a0") => "Iris Xe Graphics (Raptor Lake)",
         ("0x8086", "0xa7a1") => "UHD Graphics (Raptor Lake)",
         ("0x8086", "0x7d55") => "Iris Xe Graphics (Meteor Lake)",
-        // AMD
         ("0x1002", _) | ("0x1022", _) => "AMD Radeon",
-        // NVIDIA
         ("0x10de", "0x1f03") => "GeForce RTX 3070",
         ("0x10de", "0x1f04") => "GeForce RTX 3070 Ti",
         ("0x10de", "0x1e84") => "GeForce RTX 2080",
@@ -325,6 +339,15 @@ pub fn gpu() -> String {
     gpu_from_sysfs().unwrap_or_else(|| "Unknown GPU".to_string())
 }
 
+fn parse_kb(s: &str) -> f64 {
+    s.split("kB")
+        .next()
+        .unwrap_or(s)
+        .trim()
+        .parse()
+        .unwrap_or(0.0)
+}
+
 pub fn memory() -> String {
     let meminfo = match fs::read_to_string("/proc/meminfo") {
         Ok(m) => m,
@@ -339,6 +362,7 @@ pub fn memory() -> String {
             total_kb = parse_kb(v);
         } else if let Some(v) = line.strip_prefix("MemAvailable:") {
             avail_kb = parse_kb(v);
+            break;
         }
     }
 
@@ -358,15 +382,6 @@ pub fn memory() -> String {
     format!("{used}{unit} / {total}{unit} ({pct}%)")
 }
 
-fn parse_kb(s: &str) -> f64 {
-    s.split("kB")
-        .next()
-        .unwrap_or(s)
-        .trim()
-        .parse()
-        .unwrap_or(0.0)
-}
-
 pub fn disk() -> String {
     fn nz(s: &str) -> String {
         s.replace('T', "TB")
@@ -375,9 +390,8 @@ pub fn disk() -> String {
             .replace('K', "KB")
     }
 
-    let mut parts: Vec<String> = Vec::new();
+    let mut parts: Vec<String> = Vec::with_capacity(3);
 
-    // Build set of real device-backed mount points
     let real_mounts: HashSet<String> = fs::read_to_string("/proc/mounts")
         .ok()
         .map(|s| {
@@ -394,7 +408,6 @@ pub fn disk() -> String {
         })
         .unwrap_or_default();
 
-    // Check root plus other mount points (up to 3 total entries)
     let mount_points = ["/", "/boot", "/home", "/nix", "/new", "/var", "/.snapshots"];
     for mount in &mount_points {
         let is_root = mount == &"/";
@@ -472,6 +485,7 @@ pub fn swap() -> String {
             total_kb = parse_kb(v);
         } else if let Some(v) = line.strip_prefix("SwapFree:") {
             free_kb = parse_kb(v);
+            break;
         }
     }
 
@@ -495,7 +509,7 @@ pub fn processes() -> String {
                 .filter(|e| {
                     let name = e.file_name();
                     let s = name.to_string_lossy();
-                    s.chars().all(|c| c.is_ascii_digit())
+                    s.bytes().all(|b| b.is_ascii_digit())
                 })
                 .count()
         })
@@ -526,7 +540,6 @@ fn has_pkg_manager(cmd: &str) -> bool {
 }
 
 pub fn packages() -> String {
-    // Check which package managers are available first, then try them
     let os_release = fs::read_to_string("/etc/os-release").unwrap_or_default();
     let is_nixos = os_release.contains("ID=nixos");
     let is_arch = os_release.contains("ID=arch") || fs::metadata("/var/lib/pacman").is_ok();
@@ -537,8 +550,6 @@ pub fn packages() -> String {
     if is_nixos {
         let mut nix_parts: Vec<String> = Vec::new();
 
-        // Filter matching fastfetch's isValidNixPkg: skip -doc/-man/-info/-dev/-bin,
-        // skip nixos-system-nixos-*, and only count paths with a version number.
         let count_nix_pkgs = |profile: &str| -> Option<usize> {
             let out = Command::new("nix-store")
                 .args(["-qR", profile])
@@ -549,20 +560,16 @@ pub fn packages() -> String {
             for line in output.lines() {
                 if line.is_empty() { continue; }
                 let line = line.trim();
-                // Must exist as a directory
                 if !fs::metadata(line).map(|m| m.is_dir()).unwrap_or(false) {
                     continue;
                 }
-                // Extract package name after the store hash
                 let name = match line.rsplit_once('/') {
                     Some((_, rest)) => rest,
                     None => continue,
                 };
-                // Skip nixos-system-nixos-*
                 if name.starts_with("nixos-system-nixos-") {
                     continue;
                 }
-                // Skip -doc, -man, -info, -dev, -bin
                 if name.ends_with("-doc")
                     || name.ends_with("-man")
                     || name.ends_with("-info")
@@ -571,10 +578,9 @@ pub fn packages() -> String {
                 {
                     continue;
                 }
-                // Must contain a version number: \d+\.\d
                 let has_version = {
                     let b = name.as_bytes();
-                    let mut state = 0u8; // 0=start, 1=in-digits, 2=dot, 3=matched
+                    let mut state = 0u8;
                     for &c in b {
                         match state {
                             0 => { if c.is_ascii_digit() { state = 1; } }
@@ -616,7 +622,6 @@ pub fn packages() -> String {
             }
         }
 
-        // Resolve default profile through its symlink chain to a store path
         let default_profiles = [
             "/nix/var/nix/profiles/default",
             "/nix/var/nix/profiles/per-user/root/profile",
@@ -690,7 +695,6 @@ pub fn packages() -> String {
             }
         }
     }
-    // Generic fallback: try everything
     for (cmd, args, filter) in &[
         ("pacman", &["-Q"] as &[&str], None as Option<fn(&str) -> bool>),
         ("dpkg", &["--list"], Some(|l: &str| l.starts_with("ii"))),
@@ -780,4 +784,233 @@ pub fn init_system() -> String {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "N/A".to_string())
+}
+
+pub fn battery() -> String {
+    let base = "/sys/class/power_supply";
+    let Ok(entries) = fs::read_dir(base) else {
+        return "N/A".to_string();
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let type_path = path.join("type");
+        let Ok(type_val) = fs::read_to_string(&type_path) else {
+            continue;
+        };
+        if type_val.trim() != "Battery" {
+            continue;
+        }
+
+        let capacity_path = path.join("capacity");
+        let status_path = path.join("status");
+
+        let pct = fs::read_to_string(&capacity_path)
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok());
+
+        let status = fs::read_to_string(&status_path)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+
+        if let Some(pct) = pct {
+            let status_str = match status.as_str() {
+                "Charging" => " (charging)",
+                "Discharging" => "",
+                "Full" => " (full)",
+                "Not charging" => " (plugged)",
+                _ => "",
+            };
+            return format!("{pct}%{status_str}");
+        }
+    }
+
+    "N/A".to_string()
+}
+
+pub fn datetime() -> String {
+    use std::time::SystemTime;
+
+    let Ok(now) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) else {
+        return "N/A".to_string();
+    };
+
+    let secs = now.as_secs() as i64;
+
+    let days = secs / 86400;
+    let time_secs = secs % 86400;
+    let hours = time_secs / 3600;
+    let minutes = (time_secs % 3600) / 60;
+
+    // Civil date from days since epoch (algorithm from Howard Hinnant)
+    let z = days + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}",
+        y, m, d, hours, minutes
+    )
+}
+
+pub fn terminal_size() -> String {
+    unsafe {
+        let mut winsize: libc::winsize = std::mem::zeroed();
+        if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0
+            && winsize.ws_col > 0
+        {
+            return format!("{}x{}", winsize.ws_col, winsize.ws_row);
+        }
+    }
+
+    if let Ok(out) = Command::new("stty").arg("size").output() {
+        if let Ok(s) = String::from_utf8(out.stdout) {
+            let parts: Vec<&str> = s.trim().split_whitespace().collect();
+            if parts.len() == 2 {
+                return format!("{}x{}", parts[1], parts[0]);
+            }
+        }
+    }
+
+    "N/A".to_string()
+}
+
+pub fn cpu_usage() -> String {
+    fn read_stat() -> Option<(u64, u64, u64, u64)> {
+        let content = fs::read_to_string("/proc/stat").ok()?;
+        let line = content.lines().next()?;
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 5 {
+            return None;
+        }
+        let user: u64 = parts[1].parse().ok()?;
+        let nice: u64 = parts[2].parse().ok()?;
+        let system: u64 = parts[3].parse().ok()?;
+        let idle: u64 = parts[4].parse().ok()?;
+        Some((user, nice, system, idle))
+    }
+
+    let (u1, n1, s1, i1) = read_stat().unwrap_or((0, 0, 0, 0));
+
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    let (u2, n2, s2, i2) = read_stat().unwrap_or((0, 0, 0, 0));
+
+    let total1 = u1 + n1 + s1 + i1;
+    let total2 = u2 + n2 + s2 + i2;
+    let total_d = total2.saturating_sub(total1);
+    let idle_d = i2.saturating_sub(i1);
+
+    if total_d == 0 {
+        return "N/A".to_string();
+    }
+
+    let usage = ((total_d - idle_d) as f64 / total_d as f64 * 100.0).round() as u32;
+    format!("{usage}%")
+}
+
+pub fn public_ip() -> String {
+    if let Ok(out) = Command::new("curl")
+        .args(["-s", "--max-time", "3", "https://ifconfig.me"])
+        .output()
+    {
+        if out.status.success() {
+            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ':') {
+                return s;
+            }
+        }
+    }
+    "N/A".to_string()
+}
+
+pub fn wifi() -> String {
+    if let Ok(out) = Command::new("iwgetid").arg("-r").output() {
+        if out.status.success() {
+            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !s.is_empty() {
+                return s;
+            }
+        }
+    }
+    if let Ok(out) = Command::new("nmcli")
+        .args(["-t", "-f", "active,ssid", "dev", "wifi"])
+        .output()
+    {
+        let s = String::from_utf8_lossy(&out.stdout);
+        for line in s.lines() {
+            if let Some(ssid) = line.strip_prefix("yes:") {
+                if !ssid.is_empty() {
+                    return ssid.to_string();
+                }
+            }
+        }
+    }
+    "N/A".to_string()
+}
+
+pub fn wm_theme() -> String {
+    if let Ok(t) = env::var("GTK_THEME") {
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    if let Ok(t) = env::var("QT_QPA_PLATFORMTHEME") {
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    if let Ok(t) = env::var("ICON_THEME") {
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    "N/A".to_string()
+}
+
+pub fn bios() -> String {
+    let vendor = fs::read_to_string("/sys/class/dmi/id/bios_vendor")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+    let version = fs::read_to_string("/sys/class/dmi/id/bios_version")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    if vendor.is_empty() && version.is_empty() {
+        return "N/A".to_string();
+    }
+    if vendor.is_empty() {
+        return version;
+    }
+    if version.is_empty() {
+        return vendor;
+    }
+    format!("{vendor} {version}")
+}
+
+pub fn board() -> String {
+    let vendor = fs::read_to_string("/sys/class/dmi/id/board_vendor")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+    let name = fs::read_to_string("/sys/class/dmi/id/board_name")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    if vendor.is_empty() && name.is_empty() {
+        return "N/A".to_string();
+    }
+    if vendor.is_empty() {
+        return name;
+    }
+    if name.is_empty() {
+        return vendor;
+    }
+    format!("{vendor} {name}")
 }

@@ -1,0 +1,28 @@
+# speedfetch - Box layout config
+# Unicode box borders with title and separator line.
+
+separator = " "
+
+show = ["os", "host", "kernel", "uptime", "shell", "wm", "cpu", "gpu", "memory"]
+
+[logo]
+mode = "regular"
+
+[key]
+type = "string"
+padding_left = 1
+
+[color]
+keys   = "bright_cyan"
+values = "bright_white"
+
+[layout]
+boxes          = true
+title          = true
+separator_line = true
+
+[layout.padding]
+top    = 0
+bottom = 0
+left   = 1
+right  = 1

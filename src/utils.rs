@@ -1,19 +1,23 @@
 pub fn strip_ansi(input: &str) -> String {
-    let mut result = String::new();
-    let mut chars = input.chars().peekable();
+    let bytes = input.as_bytes();
+    let mut result = Vec::with_capacity(bytes.len());
+    let mut i = 0;
 
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            while let Some(&next) = chars.peek() {
-                chars.next();
-                if next.is_ascii_lowercase() || next.is_ascii_uppercase() {
+    while i < bytes.len() {
+        if bytes[i] == 0x1b {
+            i += 1;
+            while i < bytes.len() {
+                let b = bytes[i];
+                i += 1;
+                if (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A) {
                     break;
                 }
             }
         } else {
-            result.push(c);
+            result.push(bytes[i]);
+            i += 1;
         }
     }
 
-    result
+    unsafe { String::from_utf8_unchecked(result) }
 }

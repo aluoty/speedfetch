@@ -1,0 +1,13 @@
+# speedfetch - Minimal config
+# Essential fields only, no logo.
+
+separator = " "
+
+show = ["os", "host", "kernel", "uptime", "shell", "wm", "term", "cpu", "gpu", "memory"]
+
+[logo]
+mode = "none"
+
+[color]
+keys   = "bright_cyan"
+values = "bright_white"

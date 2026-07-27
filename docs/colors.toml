@@ -1,0 +1,28 @@
+# speedfetch - Colors theme config
+# Vibrant color scheme with bright accents.
+
+separator = " :: "
+
+show = [
+    "os", "host", "kernel", "uptime", "pkgs",
+    "shell", "de", "wm",
+    "term", "cpu", "gpu", "memory", "battery",
+    "datetime",
+]
+
+[logo]
+mode = "regular"
+
+[key]
+type = "string"
+padding_left = 2
+
+[color]
+keys   = "bright_yellow"
+values = "bright_cyan"
+
+[percent]
+type         = "colored"
+color_green  = "bright_green"
+color_yellow = "bright_yellow"
+color_red    = "bright_red"

@@ -1,0 +1,51 @@
+# speedfetch - Maximal config
+# Every field, bars, colored percentages.
+
+separator = " → "
+
+show = [
+    "os", "host", "kernel", "uptime", "pkgs",
+    "shell", "res", "de", "wm", "wm-theme",
+    "term", "term-size", "cpu", "cpu-usage", "gpu",
+    "memory", "swap", "disk", "drive", "battery",
+    "font", "init", "user", "ip", "public-ip",
+    "wifi", "datetime", "locale", "procs", "arch",
+    "bios", "board",
+]
+
+[logo]
+mode = "regular"
+
+[key]
+type = "string"
+padding_left = 1
+
+[color]
+keys   = "bright_cyan"
+values = "bright_white"
+
+[bar]
+width         = 24
+char_elapsed  = "█"
+char_total    = "░"
+border_left   = "["
+border_right  = "]"
+
+[percent]
+type         = "both"
+ndigits      = 1
+color_green  = "bright_green"
+color_yellow = "bright_yellow"
+color_red    = "bright_red"
+
+[size]
+binary_prefix = "iec"
+ndigits       = 1
+
+[temp]
+unit    = "c"
+ndigits = 1
+
+[distro.gentoo.theme]
+label = "bright_magenta"
+value = "bright_white"

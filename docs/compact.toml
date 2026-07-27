@@ -1,0 +1,24 @@
+# speedfetch - Compact config
+# Dense layout, no logo, minimal padding.
+
+separator = " = "
+
+show = ["os", "host", "kernel", "cpu", "memory", "gpu"]
+
+[logo]
+mode = "none"
+
+[key]
+width = 8
+
+[color]
+keys   = "dim"
+values = "bright_white"
+
+[bar]
+width        = 16
+char_elapsed = "●"
+char_total   = "○"
+
+[percent]
+type = "both"

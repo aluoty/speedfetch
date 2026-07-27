@@ -1,0 +1,23 @@
+# speedfetch - Neofetch-style config
+# Classic neofetch layout: full logo, standard labels.
+
+separator = " "
+
+show = [
+    "os", "host", "kernel", "uptime", "pkgs",
+    "shell", "res", "de", "wm",
+    "term", "cpu", "gpu", "memory",
+]
+
+[logo]
+mode = "regular"
+
+[key]
+type = "string"
+
+[color]
+keys   = "bright_blue"
+values = "white"
+
+[percent]
+type = "number"
