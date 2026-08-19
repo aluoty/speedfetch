@@ -129,7 +129,7 @@ color_red    = "red"
 
 ### Example configs
 
-See [`docs/`](docs/) for ready-made configs:
+See [`examples/`](examples/) for ready-made configs:
 
 | Config | Description |
 |--------|-------------|
