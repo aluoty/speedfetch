@@ -12,7 +12,11 @@ pub fn load_config(config_path: Option<&std::path::Path>) -> (Config, UserConfig
     (config, user)
 }
 
-fn apply_user_config(mut config: Config, _user: &UserConfig, config_path: Option<&std::path::Path>) -> Config {
+fn apply_user_config(
+    mut config: Config,
+    _user: &UserConfig,
+    config_path: Option<&std::path::Path>,
+) -> Config {
     let path = config_path
         .map(|p| p.to_path_buf())
         .unwrap_or_else(crate::user_config::config_path);
@@ -21,19 +25,25 @@ fn apply_user_config(mut config: Config, _user: &UserConfig, config_path: Option
         if let Ok(parsed) = toml::from_str::<toml::Value>(&content) {
             if let Some(distro_table) = parsed.get("distro").and_then(|v| v.as_table()) {
                 for (name, override_val) in distro_table {
-                    let Ok(entry_cfg) = override_val.clone().try_into::<crate::user_config::DistroOverride>() else {
+                    let Ok(entry_cfg) = override_val
+                        .clone()
+                        .try_into::<crate::user_config::DistroOverride>()
+                    else {
                         continue;
                     };
 
-                    let entry = config.distro.entry(name.clone()).or_insert_with(|| DistroConfig {
-                        inherits: String::new(),
-                        logo: Vec::new(),
-                        small_logo: Vec::new(),
-                        theme: ThemeConfig {
-                            label: "blue".to_string(),
-                            value: "white".to_string(),
-                        },
-                    });
+                    let entry = config
+                        .distro
+                        .entry(name.clone())
+                        .or_insert_with(|| DistroConfig {
+                            inherits: String::new(),
+                            logo: Vec::new(),
+                            small_logo: Vec::new(),
+                            theme: ThemeConfig {
+                                label: "blue".to_string(),
+                                value: "white".to_string(),
+                            },
+                        });
 
                     if let Some(logo) = entry_cfg.logo {
                         entry.logo = logo;

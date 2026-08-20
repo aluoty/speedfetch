@@ -142,10 +142,27 @@ pub fn wm() -> String {
     if let Ok(out) = Command::new("ps").args(["-e", "-o", "comm="]).output() {
         if let Ok(s) = String::from_utf8(out.stdout) {
             const WM_NAMES: &[&str] = &[
-                "mutter", "kwin_x11", "kwin_wayland", "openbox", "fluxbox",
-                "bspwm", "dwm", "qtile", "awesome", "xmonad", "xfwm4",
-                "i3", "sway", "hyprland", "budgie-wm", "marco", "muffin",
-                "berry", "herbstluftwm", "spectrwm", "leftwm",
+                "mutter",
+                "kwin_x11",
+                "kwin_wayland",
+                "openbox",
+                "fluxbox",
+                "bspwm",
+                "dwm",
+                "qtile",
+                "awesome",
+                "xmonad",
+                "xfwm4",
+                "i3",
+                "sway",
+                "hyprland",
+                "budgie-wm",
+                "marco",
+                "muffin",
+                "berry",
+                "herbstluftwm",
+                "spectrwm",
+                "leftwm",
             ];
             for name in WM_NAMES {
                 if s.lines().any(|l| l.trim() == *name) {
@@ -187,10 +204,7 @@ pub fn font() -> String {
 }
 
 pub fn resolution() -> String {
-    if let Ok(out) = Command::new("xrandr")
-        .args(["--current"])
-        .output()
-    {
+    if let Ok(out) = Command::new("xrandr").args(["--current"]).output() {
         for line in String::from_utf8_lossy(&out.stdout).lines() {
             if line.contains('*') {
                 if let Some(res) = line.split_whitespace().nth(0) {
@@ -221,9 +235,10 @@ pub fn cpu() -> String {
 
     if let Some(ref info) = fs::read_to_string("/proc/cpuinfo").ok() {
         for prefix in PREFIXES {
-            if let Some(name) = info.lines().find_map(|line| {
-                line.strip_prefix(prefix).map(str::trim).map(str::to_string)
-            }) {
+            if let Some(name) = info
+                .lines()
+                .find_map(|line| line.strip_prefix(prefix).map(str::trim).map(str::to_string))
+            {
                 if !name.is_empty() {
                     return name;
                 }
@@ -453,7 +468,10 @@ pub fn drive() -> String {
             .replace('K', "KB")
     }
 
-    if let Ok(out) = Command::new("lsblk").args(["-d", "-n", "-o", "model,size"]).output() {
+    if let Ok(out) = Command::new("lsblk")
+        .args(["-d", "-n", "-o", "model,size"])
+        .output()
+    {
         if let Ok(s) = String::from_utf8(out.stdout) {
             if let Some(line) = s.lines().next() {
                 let line = line.trim();
@@ -553,12 +571,17 @@ pub fn packages() -> String {
         let count_nix_pkgs = |profile: &str| -> Option<usize> {
             let out = Command::new("nix-store")
                 .args(["-qR", profile])
-                .output().ok()?;
-            if !out.status.success() { return None; }
+                .output()
+                .ok()?;
+            if !out.status.success() {
+                return None;
+            }
             let output = String::from_utf8_lossy(&out.stdout);
             let mut count = 0;
             for line in output.lines() {
-                if line.is_empty() { continue; }
+                if line.is_empty() {
+                    continue;
+                }
                 let line = line.trim();
                 if !fs::metadata(line).map(|m| m.is_dir()).unwrap_or(false) {
                     continue;
@@ -583,14 +606,25 @@ pub fn packages() -> String {
                     let mut state = 0u8;
                     for &c in b {
                         match state {
-                            0 => { if c.is_ascii_digit() { state = 1; } }
+                            0 => {
+                                if c.is_ascii_digit() {
+                                    state = 1;
+                                }
+                            }
                             1 => {
-                                if c == b'.' { state = 2; }
-                                else if !c.is_ascii_digit() { state = 0; }
+                                if c == b'.' {
+                                    state = 2;
+                                } else if !c.is_ascii_digit() {
+                                    state = 0;
+                                }
                             }
                             2 => {
-                                if c.is_ascii_digit() { state = 3; break; }
-                                else { state = 0; }
+                                if c.is_ascii_digit() {
+                                    state = 3;
+                                    break;
+                                } else {
+                                    state = 0;
+                                }
                             }
                             _ => {}
                         }
@@ -696,7 +730,11 @@ pub fn packages() -> String {
         }
     }
     for (cmd, args, filter) in &[
-        ("pacman", &["-Q"] as &[&str], None as Option<fn(&str) -> bool>),
+        (
+            "pacman",
+            &["-Q"] as &[&str],
+            None as Option<fn(&str) -> bool>,
+        ),
         ("dpkg", &["--list"], Some(|l: &str| l.starts_with("ii"))),
         ("rpm", &["-qa"], None),
         ("apk", &["info"], None),
@@ -761,7 +799,9 @@ pub fn arch() -> String {
     }
     if let Ok(info) = fs::read_to_string("/proc/cpuinfo") {
         if let Some(a) = info.lines().find_map(|l| {
-            l.strip_prefix("CPU architecture: ").map(str::trim).map(str::to_string)
+            l.strip_prefix("CPU architecture: ")
+                .map(str::trim)
+                .map(str::to_string)
         }) {
             return a;
         }
@@ -854,10 +894,7 @@ pub fn datetime() -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
 
-    format!(
-        "{:04}-{:02}-{:02} {:02}:{:02}",
-        y, m, d, hours, minutes
-    )
+    format!("{:04}-{:02}-{:02} {:02}:{:02}", y, m, d, hours, minutes)
 }
 
 pub fn terminal_size() -> String {
@@ -923,7 +960,10 @@ pub fn public_ip() -> String {
     {
         if out.status.success() {
             let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ':') {
+            if !s.is_empty()
+                && s.chars()
+                    .all(|c| c.is_ascii_digit() || c == '.' || c == ':')
+            {
                 return s;
             }
         }

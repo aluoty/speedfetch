@@ -1,4 +1,4 @@
-use std::io::{IsTerminal, Write, BufWriter};
+use std::io::{BufWriter, IsTerminal, Write};
 use std::path::PathBuf;
 
 use unicode_width::UnicodeWidthStr;
@@ -22,9 +22,9 @@ use user_config::{LogoMode, PercentType};
 #[derive(Parser)]
 #[command(name = "speedfetch", version, about = "A pretty system info fetcher")]
 struct Args {
-    /// Distro to display (overrides auto-detection)
+    /// Logo source: distro name or file path (overrides auto-detection)
     #[arg(short, long)]
-    distro: Option<String>,
+    logo: Option<String>,
 
     /// List available distro presets
     #[arg(long)]
@@ -38,11 +38,11 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     save: Option<String>,
 
-    /// Logo mode: small, regular, none
+    /// Logo type: small, regular, none
     #[arg(long, value_name = "TYPE")]
-    logo: Option<LogoMode>,
+    logo_type: Option<LogoMode>,
 
-    /// Hide logo, show info only (alias for --logo none)
+    /// Hide logo, show info only (alias for --logo-type none)
     #[arg(long, short = 'b')]
     no_logo: bool,
 
@@ -167,29 +167,98 @@ struct RowDef {
 
 fn all_rows() -> Vec<RowDef> {
     vec![
-        RowDef { label: "OS:", key: "os" },
-        RowDef { label: "Host:", key: "host" },
-        RowDef { label: "Kernel:", key: "kernel" },
-        RowDef { label: "Uptime:", key: "uptime" },
-        RowDef { label: "Packages:", key: "pkgs" },
-        RowDef { label: "Shell:", key: "shell" },
-        RowDef { label: "Resolution:", key: "res" },
-        RowDef { label: "DE:", key: "de" },
-        RowDef { label: "WM:", key: "wm" },
-        RowDef { label: "Terminal:", key: "term" },
-        RowDef { label: "CPU:", key: "cpu" },
-        RowDef { label: "GPU:", key: "gpu" },
-        RowDef { label: "Memory:", key: "memory" },
-        RowDef { label: "Swap:", key: "swap" },
-        RowDef { label: "Disk:", key: "disk" },
-        RowDef { label: "Drive:", key: "drive" },
-        RowDef { label: "Battery:", key: "battery" },
-        RowDef { label: "Font:", key: "font" },
-        RowDef { label: "Init:", key: "init" },
-        RowDef { label: "Local IP:", key: "ip" },
-        RowDef { label: "Date/Time:", key: "datetime" },
-        RowDef { label: "Procs:", key: "procs" },
-        RowDef { label: "Arch:", key: "arch" },
+        RowDef {
+            label: "OS:",
+            key: "os",
+        },
+        RowDef {
+            label: "Host:",
+            key: "host",
+        },
+        RowDef {
+            label: "Kernel:",
+            key: "kernel",
+        },
+        RowDef {
+            label: "Uptime:",
+            key: "uptime",
+        },
+        RowDef {
+            label: "Packages:",
+            key: "pkgs",
+        },
+        RowDef {
+            label: "Shell:",
+            key: "shell",
+        },
+        RowDef {
+            label: "Resolution:",
+            key: "res",
+        },
+        RowDef {
+            label: "DE:",
+            key: "de",
+        },
+        RowDef {
+            label: "WM:",
+            key: "wm",
+        },
+        RowDef {
+            label: "Terminal:",
+            key: "term",
+        },
+        RowDef {
+            label: "CPU:",
+            key: "cpu",
+        },
+        RowDef {
+            label: "GPU:",
+            key: "gpu",
+        },
+        RowDef {
+            label: "Memory:",
+            key: "memory",
+        },
+        RowDef {
+            label: "Swap:",
+            key: "swap",
+        },
+        RowDef {
+            label: "Disk:",
+            key: "disk",
+        },
+        RowDef {
+            label: "Drive:",
+            key: "drive",
+        },
+        RowDef {
+            label: "Battery:",
+            key: "battery",
+        },
+        RowDef {
+            label: "Font:",
+            key: "font",
+        },
+        RowDef {
+            label: "Init:",
+            key: "init",
+        },
+        RowDef {
+            label: "Local IP:",
+            key: "ip",
+        },
+        RowDef {
+            label: "Date/Time:",
+            key: "datetime",
+        },
+        RowDef {
+            label: "Procs:",
+            key: "procs",
+        },
+        RowDef {
+            label: "Arch:",
+            key: "arch",
+        },
     ]
 }
 
@@ -300,7 +369,10 @@ fn format_value_with_options(
 ) -> (String, String) {
     let reset = "\x1b[0m";
 
-    let value_color = cfg.color.values.as_ref()
+    let value_color = cfg
+        .color
+        .values
+        .as_ref()
         .map(|c| map_color(c))
         .unwrap_or_else(|| theme.value_color.clone());
 
@@ -379,14 +451,15 @@ fn info_rows(
             let key_str = match cfg.key.key_type {
                 user_config::KeyType::None => String::new(),
                 _ => {
-                    let label_color = cfg.color.keys.as_ref()
+                    let label_color = cfg
+                        .color
+                        .keys
+                        .as_ref()
                         .map(|c| map_color(c))
                         .unwrap_or_else(|| theme.label_color.clone());
 
                     let label_text = match cfg.key.key_type {
-                        user_config::KeyType::Icon => {
-                            short_key(row.key).to_string()
-                        }
+                        user_config::KeyType::Icon => short_key(row.key).to_string(),
                         _ => row.label.to_string(),
                     };
 
@@ -398,7 +471,8 @@ fn info_rows(
                 }
             };
 
-            let (formatted_val, _val_color) = format_value_with_options(display_val, row.key, theme, cfg);
+            let (formatted_val, _val_color) =
+                format_value_with_options(display_val, row.key, theme, cfg);
 
             Some((key_str, formatted_val))
         })
@@ -517,28 +591,36 @@ fn compose(
     show: &[&str],
     logo_mode: LogoMode,
     cfg: &user_config::UserConfig,
+    use_os_release: bool,
 ) -> Vec<String> {
     let logo_lines = get_logo_lines(config, distro, logo_mode);
     let rows = info_rows(theme, info, show, cfg);
 
     let key_width = cfg.key.width.unwrap_or_else(|| {
-        rows.iter().map(|(l, _)| utils::strip_ansi(l).width()).max().unwrap_or(0)
+        rows.iter()
+            .map(|(l, _)| utils::strip_ansi(l).width())
+            .max()
+            .unwrap_or(0)
     });
 
     let sep = &cfg.separator;
     let key_pad = cfg.key.padding_left;
 
-    let info_lines: Vec<String> = rows.iter().map(|(label, value)| {
-        let visible = utils::strip_ansi(label).width();
-        let pad = key_width.saturating_sub(visible);
-        let mut line = String::with_capacity(key_pad + key_width + sep.len() + value.len() + 16);
-        line.extend(std::iter::repeat(' ').take(key_pad));
-        line.push_str(label);
-        line.extend(std::iter::repeat(' ').take(pad));
-        line.push_str(sep);
-        line.push_str(value);
-        line
-    }).collect();
+    let info_lines: Vec<String> = rows
+        .iter()
+        .map(|(label, value)| {
+            let visible = utils::strip_ansi(label).width();
+            let pad = key_width.saturating_sub(visible);
+            let mut line =
+                String::with_capacity(key_pad + key_width + sep.len() + value.len() + 16);
+            line.extend(std::iter::repeat(' ').take(key_pad));
+            line.push_str(label);
+            line.extend(std::iter::repeat(' ').take(pad));
+            line.push_str(sep);
+            line.push_str(value);
+            line
+        })
+        .collect();
 
     let mut info_lines = info_lines;
 
@@ -563,8 +645,9 @@ fn compose(
         padded.extend(info_lines);
         padded
     } else {
-        let rendered = theme.render_logo(&logo_lines, distro);
-        let mut logo_padded: Vec<String> = Vec::with_capacity(rendered.len() + cfg.logo.padding.top);
+        let rendered = theme.render_logo(&logo_lines, distro, use_os_release);
+        let mut logo_padded: Vec<String> =
+            Vec::with_capacity(rendered.len() + cfg.logo.padding.top);
         for _ in 0..cfg.logo.padding.top {
             logo_padded.push(String::new());
         }
@@ -579,15 +662,17 @@ fn wrap_box(
     separator_line: bool,
     padding: &user_config::LayoutPadding,
 ) -> Vec<String> {
-    let visible_widths: Vec<usize> = lines.iter()
-        .map(|l| utils::strip_ansi(l).width())
-        .collect();
+    let visible_widths: Vec<usize> = lines.iter().map(|l| utils::strip_ansi(l).width()).collect();
 
     let content_width = visible_widths.iter().copied().max().unwrap_or(0);
 
     let title_str = title.unwrap_or("");
     let title_display_width = unicode_width::UnicodeWidthStr::width(title_str);
-    let title_line_width = if title_str.is_empty() { 0 } else { title_display_width + 1 }; // +1 for trailing space
+    let title_line_width = if title_str.is_empty() {
+        0
+    } else {
+        title_display_width + 1
+    }; // +1 for trailing space
 
     let inner_width = content_width.max(title_line_width);
 
@@ -602,7 +687,10 @@ fn wrap_box(
     let top_line = {
         let after_title = inner_width.saturating_sub(title_line_width);
         if title_str.is_empty() {
-            format!("╭{}╮", "─".repeat(inner_width + padding.left + padding.right))
+            format!(
+                "╭{}╮",
+                "─".repeat(inner_width + padding.left + padding.right)
+            )
         } else {
             format!(
                 "╭─{} {}─{}╮",
@@ -627,12 +715,7 @@ fn wrap_box(
     for (i, line) in lines.iter().enumerate() {
         let vis = visible_widths[i];
         let pad_right = inner_width.saturating_sub(vis) + padding.right;
-        out.push(format!(
-            "│{}{}{}│",
-            left_pad,
-            line,
-            " ".repeat(pad_right),
-        ));
+        out.push(format!("│{}{}{}│", left_pad, line, " ".repeat(pad_right),));
     }
 
     // Bottom border
@@ -665,12 +748,15 @@ fn main() {
         return;
     }
 
-    let distro = args.distro.unwrap_or_else(distro::distro);
+    let (distro, use_os_release) = match args.logo {
+        Some(d) => (d, false),
+        None => (distro::distro(), true),
+    };
 
     let logo_mode = if args.no_logo {
         LogoMode::None
     } else {
-        args.logo.unwrap_or(user_cfg.logo.mode)
+        args.logo_type.unwrap_or(user_cfg.logo.mode)
     };
 
     let color_mode = args.color.as_deref().unwrap_or("auto");
@@ -700,7 +786,7 @@ fn main() {
                 distro_styles::logo_family(&distro)
             };
             let theme = registry.get(theme_key);
-            let lines = compose(&config, &distro, &theme, &info, &show, logo_mode, &user_cfg);
+            let lines = compose(&config, &distro, &theme, &info, &show, logo_mode, &user_cfg, use_os_release);
             let mut buf = String::with_capacity(lines.iter().map(|l| l.len() + 1).sum::<usize>());
             for line in lines {
                 buf.push_str(&line);

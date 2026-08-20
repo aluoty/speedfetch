@@ -56,8 +56,8 @@ impl Theme {
         }
     }
 
-    pub fn render_logo(&self, lines: &[String], distro: &str) -> Vec<String> {
-        let style = distro_styles::distro_style(distro);
+    pub fn render_logo(&self, lines: &[String], distro: &str, use_os_release: bool) -> Vec<String> {
+        let style = distro_styles::distro_style(distro, use_os_release);
         lines
             .iter()
             .enumerate()
@@ -65,7 +65,12 @@ impl Theme {
             .collect()
     }
 
-    fn gradient_text(&self, text: &str, style: distro_styles::DistroStyle, line_index: usize) -> String {
+    fn gradient_text(
+        &self,
+        text: &str,
+        style: distro_styles::DistroStyle,
+        line_index: usize,
+    ) -> String {
         let chars: Vec<char> = text.chars().collect();
         let len = chars.len();
         if len == 0 {

@@ -374,7 +374,10 @@ impl UserConfig {
         let path = path.map(|p| p.to_path_buf()).unwrap_or_else(config_path);
         match std::fs::read_to_string(&path) {
             Ok(content) => toml::from_str(&content).unwrap_or_else(|e| {
-                eprintln!("speedfetch: warning: failed to parse {}: {e}", path.display());
+                eprintln!(
+                    "speedfetch: warning: failed to parse {}: {e}",
+                    path.display()
+                );
                 Self::default()
             }),
             Err(_) => Self::default(),

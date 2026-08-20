@@ -5,7 +5,7 @@ A fast, pretty system info fetcher for Linux terminals with gradient ASCII logos
 ## Features
 
 - **78 authentic ASCII logos** from [fastfetch](https://github.com/fastfetch-cli/fastfetch)
-- **Per-distro gradient colors** matched to each distro family
+- **Per-distro gradient colors**: reads `ANSI_COLOR` from `/etc/os-release` when auto-detecting, uses hardcoded colors when `--logo` overrides
 - **Full TOML config** with `--config` or `~/.config/speedfetch/config.toml`
 - **Box layout** with Unicode borders and title bar
 - **Bar/percent display** for memory, swap, battery, CPU usage
@@ -26,8 +26,8 @@ cargo run
 ./target/release/speedfetch
 
 # Specify a distro logo
-speedfetch --distro arch
-speedfetch -d ubuntu
+speedfetch --logo arch
+speedfetch -l ubuntu
 
 # List all available distro presets
 speedfetch --list
@@ -39,10 +39,10 @@ speedfetch --show os,kernel,cpu,memory,gpu
 speedfetch --config ~/.config/my-theme.toml
 
 # Logo modes
-speedfetch --logo small
-speedfetch --logo regular
-speedfetch --logo none
-speedfetch --no-logo          # alias for --logo none
+speedfetch --logo-type small
+speedfetch --logo-type regular
+speedfetch --logo-type none
+speedfetch --no-logo          # alias for --logo-type none
 speedfetch -b                 # short form
 
 # Output as JSON / TOML
@@ -67,15 +67,15 @@ cargo build --release
 Usage: speedfetch [OPTIONS]
 
 Options:
-  -d, --distro <DISTRO>  Distro to display (overrides auto-detection)
-      --list             List available distro presets
-      --type <FORMAT>    Output format (json, toml)
-      --save <FILE>      Save output to file
-      --logo <TYPE>      Logo mode: small, regular, none
-  -b, --no-logo          Hide logo, show info only (alias for --logo none)
-      --color <COLOR>    When to colorize output [auto, always, never]
-      --show <FIELDS>    Show only specific fields (comma-separated: os,kernel,cpu,memory,...)
-      --config <FILE>    Path to custom config file
+  -l, --logo <LOGO>       Logo source: distro name or file path (overrides auto-detection)
+      --list              List available distro presets
+      --type <FORMAT>     Output format (json, toml)
+      --save <FILE>       Save output to file
+      --logo-type <TYPE>  Logo type: small, regular, none
+  -b, --no-logo           Hide logo, show info only (alias for --logo-type none)
+      --color <COLOR>     When to colorize output [auto, always, never]
+      --show <FIELDS>     Show only specific fields (comma-separated: os,kernel,cpu,memory,...)
+      --config <FILE>     Path to custom config file
   -h, --help             Print help
   -V, --version          Print version
 ```
